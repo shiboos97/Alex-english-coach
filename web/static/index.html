@@ -548,6 +548,8 @@
   let recognition = null;
   let currentTranscript = '';
   let lastInterim = '';
+  let manualStop = false;      // true only when user taps ⏹
+  let processedCount = 0;      // tracks how many final results already saved
   let audioCtx = null;
 
   // Unlock AudioContext on first user gesture so mobile browsers allow playback
@@ -607,77 +609,97 @@
 
     currentTranscript = '';
     lastInterim = '';
-    recognition = new SR();
-    recognition.lang = 'en-US';
-    recognition.continuous = true;   // keep listening until user taps stop
-    recognition.interimResults = true;
+    processedCount = 0;
+    manualStop = false;
 
-    recognition.onstart = () => {
-      isRecording = true;
-      document.getElementById('mic-btn').classList.add('recording');
-      document.getElementById('mic-btn').textContent = '⏹';
-      setStatus('Listening... tap ⏹ to stop', 'listening');
-    };
+    function createAndStart() {
+      recognition = new SR();
+      recognition.lang = 'en-US';
+      recognition.continuous = false;   // false prevents Android duplicate-result bug
+      recognition.interimResults = true;
 
-    recognition.onresult = (e) => {
-      let interim = '', final = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) final += e.results[i][0].transcript + ' ';
-        else interim += e.results[i][0].transcript;
-      }
-      if (final) {
-        currentTranscript += final;
+      recognition.onstart = () => {
+        // Only update UI on the very first start
+        if (!isRecording) {
+          isRecording = true;
+          document.getElementById('mic-btn').classList.add('recording');
+          document.getElementById('mic-btn').textContent = '⏹';
+          setStatus('Listening... tap ⏹ to stop', 'listening');
+        }
+      };
+
+      recognition.onresult = (e) => {
+        let interim = '', final = '';
+        // Use processedCount so Android restarts never re-add already-saved text
+        for (let i = processedCount; i < e.results.length; i++) {
+          if (e.results[i].isFinal) {
+            final += e.results[i][0].transcript + ' ';
+            processedCount = i + 1;
+          } else {
+            interim += e.results[i][0].transcript;
+          }
+        }
+        if (final) {
+          currentTranscript += final;
+          lastInterim = '';
+        } else {
+          lastInterim = interim;
+        }
+        document.getElementById('transcript-preview').textContent =
+          (currentTranscript + lastInterim).trim();
+      };
+
+      recognition.onend = () => {
+        if (!manualStop && isRecording) {
+          // Android auto-stopped mid-session — restart and keep accumulating
+          processedCount = 0;
+          lastInterim = '';
+          try { createAndStart(); } catch (e) {}
+          return;
+        }
+        // User tapped ⏹ — finish
+        isRecording = false;
+        recognition = null;
+        document.getElementById('mic-btn').classList.remove('recording');
+        document.getElementById('mic-btn').textContent = '🎤';
+
+        const text = (currentTranscript + ' ' + lastInterim).trim();
+        currentTranscript = '';
         lastInterim = '';
-      } else {
-        lastInterim = interim;
-      }
-      document.getElementById('transcript-preview').textContent =
-        (currentTranscript + lastInterim).trim();
-    };
+        document.getElementById('transcript-preview').textContent = '';
 
-    recognition.onend = () => {
-      isRecording = false;
-      recognition = null;
-      document.getElementById('mic-btn').classList.remove('recording');
-      document.getElementById('mic-btn').textContent = '🎤';
+        if (text) sendMessage(text);
+        else setStatus('Tap the mic to speak');
+      };
 
-      // Include any trailing interim that never got finalized
-      const text = (currentTranscript + ' ' + lastInterim).trim();
-      currentTranscript = '';
-      lastInterim = '';
-      document.getElementById('transcript-preview').textContent = '';
+      recognition.onerror = (e) => {
+        if (e.error === 'no-speech') return; // normal on Android — onend will restart
+        manualStop = true;
+        isRecording = false;
+        recognition = null;
+        document.getElementById('mic-btn').classList.remove('recording');
+        document.getElementById('mic-btn').textContent = '🎤';
+        currentTranscript = '';
+        lastInterim = '';
+        document.getElementById('transcript-preview').textContent = '';
+        const msg = e.error === 'not-allowed'
+          ? 'Mic blocked — allow microphone access in browser settings'
+          : 'Mic error: ' + e.error;
+        setStatus(msg);
+      };
 
-      if (text) sendMessage(text);
-      else setStatus('Tap the mic to speak');
-    };
-
-    recognition.onerror = (e) => {
-      // 'no-speech' is normal with continuous=true — just restart silently
-      if (e.error === 'no-speech') return;
-      isRecording = false;
-      recognition = null;
-      document.getElementById('mic-btn').classList.remove('recording');
-      document.getElementById('mic-btn').textContent = '🎤';
-      currentTranscript = '';
-      document.getElementById('transcript-preview').textContent = '';
-      const msg = e.error === 'not-allowed'
-        ? 'Mic blocked — allow microphone access in browser settings'
-        : 'Mic error: ' + e.error;
-      setStatus(msg);
-    };
-
-    try {
-      recognition.start();
-    } catch (e) {
-      setStatus('Could not start mic: ' + e.message);
+      try { recognition.start(); } catch (e) { setStatus('Could not start mic: ' + e.message); }
     }
+
+    createAndStart();
   }
 
   function toggleMic() {
     if (isProcessing) return;
     unlockAudio();
-    if (isRecording && recognition) {
-      recognition.stop();
+    if (isRecording) {
+      manualStop = true;
+      if (recognition) recognition.stop();
     } else {
       startRecognition();
     }
