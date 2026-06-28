@@ -547,6 +547,19 @@
   let isProcessing = false;
   let recognition = null;
   let currentTranscript = '';
+  let audioCtx = null;
+
+  // Unlock AudioContext on first user gesture so mobile browsers allow playback
+  function unlockAudio() {
+    if (audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // Play a silent buffer to fully unlock
+    const buf = audioCtx.createBuffer(1, 1, 22050);
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    src.connect(audioCtx.destination);
+    src.start(0);
+  }
 
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -652,6 +665,7 @@
 
   function toggleMic() {
     if (isProcessing) return;
+    unlockAudio();
     if (isRecording && recognition) {
       recognition.stop();
     } else {
@@ -661,6 +675,7 @@
 
   // ── Session Control ──
   async function selectTopic(topicId) {
+    unlockAudio();
     showLoader(true);
     try {
       const res = await fetch('/api/start', {
@@ -859,11 +874,30 @@
 
   async function playAudio(base64) {
     if (!base64) return;
-    return new Promise((resolve) => {
-      const audio = new Audio('data:audio/mp3;base64,' + base64);
-      audio.onended = resolve;
-      audio.onerror = resolve;
-      audio.play().catch(resolve);
+    if (!audioCtx) {
+      // fallback for cases where unlockAudio wasn't called yet
+      return new Promise((resolve) => {
+        const audio = new Audio('data:audio/mp3;base64,' + base64);
+        audio.onended = resolve;
+        audio.onerror = resolve;
+        audio.play().catch(resolve);
+      });
+    }
+    // Use AudioContext (already unlocked by user gesture) — works on all mobile browsers
+    return new Promise(async (resolve) => {
+      try {
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const buffer = await audioCtx.decodeAudioData(bytes.buffer);
+        const src = audioCtx.createBufferSource();
+        src.buffer = buffer;
+        src.connect(audioCtx.destination);
+        src.onended = resolve;
+        src.start(0);
+      } catch (e) {
+        resolve();
+      }
     });
   }
 
