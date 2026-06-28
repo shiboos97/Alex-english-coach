@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#6366f1" />
+  <title>Alex — English Coach</title>
+  <style>
+    /* ── Reset & Variables ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --primary-light: #e0e7ff;
+      --accent: #f59e0b;
+      --danger: #ef4444;
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --text: #1e293b;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --user-bubble: #6366f1;
+      --alex-bubble: #ffffff;
+      --correction-bg: #fef9c3;
+      --correction-border: #f59e0b;
+      --correction-text: #92400e;
+      --shadow: 0 4px 20px rgba(0,0,0,0.08);
+      --radius: 16px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      overflow-x: hidden;
+    }
+
+    /* ── Screen Manager ── */
+    .screen { display: none; min-height: 100dvh; }
+    .screen.active { display: flex; flex-direction: column; }
+
+    /* ══════════════════════════════
+       HOME SCREEN
+    ══════════════════════════════ */
+    #home-screen {
+      background: linear-gradient(160deg, #6366f1 0%, #8b5cf6 100%);
+      padding: 0 0 32px;
+    }
+
+    .home-hero {
+      padding: 60px 24px 32px;
+      text-align: center;
+      color: white;
+    }
+
+    .home-hero .avatar {
+      width: 80px; height: 80px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 40px;
+      margin: 0 auto 20px;
+      backdrop-filter: blur(10px);
+    }
+
+    .home-hero h1 {
+      font-size: 28px; font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .home-hero p {
+      font-size: 15px; opacity: 0.85;
+      line-height: 1.5;
+    }
+
+    .topics-section {
+      background: var(--bg);
+      border-radius: 28px 28px 0 0;
+      padding: 28px 16px 0;
+      flex: 1;
+    }
+
+    .topics-section h2 {
+      font-size: 16px; font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 16px;
+      padding: 0 8px;
+    }
+
+    .topics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      padding-bottom: 32px;
+    }
+
+    .topic-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 18px 14px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      box-shadow: var(--shadow);
+      transition: all 0.2s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .topic-card:active {
+      transform: scale(0.96);
+      border-color: var(--primary);
+    }
+
+    .topic-card .icon { font-size: 28px; margin-bottom: 10px; }
+    .topic-card .name {
+      font-size: 13px; font-weight: 600;
+      color: var(--text); line-height: 1.3;
+    }
+    .topic-card .num {
+      font-size: 11px; color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    /* ══════════════════════════════
+       CHAT SCREEN
+    ══════════════════════════════ */
+    #chat-screen { background: var(--bg); }
+
+    .chat-header {
+      background: var(--primary);
+      padding: 16px 20px;
+      padding-top: calc(env(safe-area-inset-top) + 16px);
+      display: flex; align-items: center; gap: 12px;
+      color: white;
+      position: sticky; top: 0; z-index: 10;
+    }
+
+    .chat-header .back-btn {
+      background: rgba(255,255,255,0.2);
+      border: none; color: white;
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .chat-header .topic-info { flex: 1; min-width: 0; }
+    .chat-header .topic-info .name {
+      font-size: 15px; font-weight: 600;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .chat-header .topic-info .subtitle {
+      font-size: 12px; opacity: 0.75;
+    }
+
+    .end-btn {
+      background: rgba(255,255,255,0.2);
+      border: none; color: white;
+      padding: 8px 14px; border-radius: 20px;
+      font-size: 13px; font-weight: 600;
+      cursor: pointer; flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Messages */
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 16px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .msg-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+
+    .msg-group.user { align-items: flex-end; }
+    .msg-group.alex { align-items: flex-start; }
+
+    .msg-label {
+      font-size: 11px; font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 4px;
+      padding: 0 4px;
+    }
+
+    .bubble {
+      max-width: 82%;
+      padding: 12px 16px;
+      border-radius: 18px;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    .msg-group.user .bubble {
+      background: var(--user-bubble);
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+
+    .msg-group.alex .bubble {
+      background: var(--alex-bubble);
+      color: var(--text);
+      border-bottom-left-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    }
+
+    .correction-box {
+      max-width: 88%;
+      background: var(--correction-bg);
+      border: 1.5px solid var(--correction-border);
+      border-radius: 12px;
+      padding: 10px 14px;
+      margin-top: 6px;
+      font-size: 13px;
+      color: var(--correction-text);
+      line-height: 1.5;
+    }
+
+    .correction-box strong { font-weight: 700; }
+
+    /* Typing indicator */
+    .typing-indicator {
+      display: flex; gap: 4px;
+      align-items: center;
+      padding: 14px 16px;
+      background: var(--alex-bubble);
+      border-radius: 18px;
+      border-bottom-left-radius: 4px;
+      width: fit-content;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    }
+
+    .typing-indicator span {
+      width: 8px; height: 8px;
+      background: var(--muted);
+      border-radius: 50%;
+      animation: bounce 1.2s infinite ease-in-out;
+    }
+
+    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-6px); }
+    }
+
+    /* Input area */
+    .input-area {
+      background: var(--card);
+      padding: 16px 20px;
+      padding-bottom: calc(env(safe-area-inset-bottom) + 16px);
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-text {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 500;
+      text-align: center;
+      min-height: 18px;
+      transition: color 0.2s;
+    }
+
+    .status-text.listening { color: var(--danger); }
+    .status-text.thinking { color: var(--primary); }
+
+    #mic-btn {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg, var(--primary), #8b5cf6);
+      color: white;
+      font-size: 30px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 6px 24px rgba(99,102,241,0.45);
+      transition: all 0.2s ease;
+      -webkit-tap-highlight-color: transparent;
+      position: relative;
+    }
+
+    #mic-btn:disabled {
+      background: var(--border);
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    #mic-btn.recording {
+      background: linear-gradient(135deg, var(--danger), #f97316);
+      box-shadow: 0 6px 24px rgba(239,68,68,0.5);
+    }
+
+    #mic-btn.recording::before {
+      content: '';
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+      border: 2px solid rgba(239,68,68,0.4);
+      animation: pulse-ring 1.2s ease-out infinite;
+    }
+
+    @keyframes pulse-ring {
+      0% { transform: scale(1); opacity: 1; }
+      100% { transform: scale(1.4); opacity: 0; }
+    }
+
+    .transcript-preview {
+      font-size: 13px;
+      color: var(--muted);
+      font-style: italic;
+      text-align: center;
+      min-height: 16px;
+      padding: 0 16px;
+    }
+
+    /* ══════════════════════════════
+       SUMMARY SCREEN
+    ══════════════════════════════ */
+    #summary-screen {
+      background: linear-gradient(160deg, #6366f1 0%, #8b5cf6 60%, var(--bg) 60%);
+    }
+
+    .summary-hero {
+      padding: 60px 24px 80px;
+      text-align: center;
+      color: white;
+    }
+
+    .summary-hero .trophy { font-size: 56px; margin-bottom: 16px; }
+    .summary-hero h2 { font-size: 26px; font-weight: 700; margin-bottom: 8px; }
+    .summary-hero p { font-size: 15px; opacity: 0.85; }
+
+    .summary-card {
+      background: var(--card);
+      border-radius: 24px 24px 0 0;
+      margin-top: -32px;
+      padding: 28px 20px 40px;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .stat-box {
+      background: var(--primary-light);
+      border-radius: 14px;
+      padding: 16px 8px;
+      text-align: center;
+    }
+
+    .stat-box .val {
+      font-size: 22px; font-weight: 700;
+      color: var(--primary);
+    }
+
+    .stat-box .lbl {
+      font-size: 11px; color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .summary-section { margin-bottom: 24px; }
+
+    .summary-section h3 {
+      font-size: 14px; font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 12px;
+    }
+
+    .correction-item {
+      background: var(--correction-bg);
+      border-left: 3px solid var(--correction-border);
+      border-radius: 0 10px 10px 0;
+      padding: 10px 14px;
+      font-size: 14px;
+      color: var(--correction-text);
+      margin-bottom: 8px;
+      line-height: 1.5;
+    }
+
+    .no-corrections {
+      background: #dcfce7;
+      border: 1.5px solid #86efac;
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+      color: #166534;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    #restart-btn {
+      width: 100%;
+      background: linear-gradient(135deg, var(--primary), #8b5cf6);
+      color: white;
+      border: none;
+      padding: 16px;
+      border-radius: var(--radius);
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+      box-shadow: 0 4px 16px rgba(99,102,241,0.4);
+    }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 100px; left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #1e293b;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 24px;
+      font-size: 13px;
+      opacity: 0;
+      transition: all 0.3s ease;
+      pointer-events: none;
+      z-index: 100;
+      white-space: nowrap;
+    }
+
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ── Loader overlay ── */
+    #loader {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(255,255,255,0.6);
+      backdrop-filter: blur(4px);
+      z-index: 50;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #loader.show { display: flex; }
+
+    .spinner {
+      width: 48px; height: 48px;
+      border: 4px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<!-- ══ HOME SCREEN ══ -->
+<div id="home-screen" class="screen active">
+  <div class="home-hero">
+    <div class="avatar">🎓</div>
+    <h1>Hi, I'm Alex!</h1>
+    <p>Your personal English conversation coach.<br>Choose a topic to get started.</p>
+  </div>
+  <div class="topics-section">
+    <h2>Choose a topic</h2>
+    <div class="topics-grid" id="topics-grid"></div>
+  </div>
+</div>
+
+<!-- ══ CHAT SCREEN ══ -->
+<div id="chat-screen" class="screen">
+  <div class="chat-header">
+    <button class="back-btn" onclick="goHome()">‹</button>
+    <div class="topic-info">
+      <div class="name" id="header-topic-name">English Practice</div>
+      <div class="subtitle">with Alex · English Coach</div>
+    </div>
+    <button class="end-btn" onclick="endSession()">End</button>
+  </div>
+
+  <div id="messages"></div>
+
+  <div class="input-area">
+    <div class="transcript-preview" id="transcript-preview"></div>
+    <button id="mic-btn" onclick="toggleMic()">🎤</button>
+    <div class="status-text" id="status-text">Tap the mic to speak</div>
+  </div>
+</div>
+
+<!-- ══ SUMMARY SCREEN ══ -->
+<div id="summary-screen" class="screen">
+  <div class="summary-hero">
+    <div class="trophy">🏆</div>
+    <h2>Great session!</h2>
+    <p id="summary-topic-name">Free Conversation</p>
+  </div>
+  <div class="summary-card">
+    <div class="stats-row">
+      <div class="stat-box">
+        <div class="val" id="stat-duration">—</div>
+        <div class="lbl">Duration</div>
+      </div>
+      <div class="stat-box">
+        <div class="val" id="stat-exchanges">0</div>
+        <div class="lbl">Exchanges</div>
+      </div>
+      <div class="stat-box">
+        <div class="val" id="stat-corrections">0</div>
+        <div class="lbl">Corrections</div>
+      </div>
+    </div>
+
+    <div class="summary-section" id="corrections-section">
+      <h3>Grammar Corrections</h3>
+      <div id="corrections-list"></div>
+    </div>
+
+    <button id="restart-btn" onclick="restart()">Start New Session 🎙</button>
+  </div>
+</div>
+
+<!-- ══ Shared UI ══ -->
+<div id="toast"></div>
+<div id="loader"><div class="spinner"></div></div>
+
+<script>
+  // ── Constants ──
+  const TOPIC_ICONS = ['🌅','✈️','🍳','💼','🎬','🤖','💬','👔','📖','🗣️'];
+
+  // ── State ──
+  let sessionId = null;
+  let isRecording = false;
+  let isProcessing = false;
+  let recognition = null;
+  let currentTranscript = '';
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  // ── Init ──
+  document.addEventListener('DOMContentLoaded', () => {
+    loadTopics();
+    if (!SR) {
+      setStatus('⚠️ Use Chrome browser for voice input');
+      document.getElementById('mic-btn').disabled = true;
+    }
+    // Check for insecure context (non-localhost HTTP) — mic won't work
+    if (location.protocol === 'http:' && !['localhost','127.0.0.1'].includes(location.hostname)) {
+      setStatus('⚠️ Mic needs HTTPS. Deploy to Render or use localhost.');
+      document.getElementById('mic-btn').disabled = true;
+    }
+  });
+
+  async function loadTopics() {
+    try {
+      const res = await fetch('/api/topics');
+      const data = await res.json();
+      renderTopics(data.topics);
+    } catch (e) {
+      showToast('Could not load topics. Is the server running?');
+    }
+  }
+
+  function renderTopics(topics) {
+    const grid = document.getElementById('topics-grid');
+    grid.innerHTML = topics.map((t, i) => `
+      <div class="topic-card" onclick="selectTopic(${t.id})">
+        <div class="icon">${TOPIC_ICONS[i] || '💬'}</div>
+        <div class="num">#${t.id}</div>
+        <div class="name">${t.name}</div>
+      </div>
+    `).join('');
+  }
+
+  // ── Speech Recognition ──
+  // A fresh instance is created on every tap — reusing the same object
+  // causes silent failures in Chrome after the first onend fires.
+  function startRecognition() {
+    if (!SR) { showToast('Use Chrome for voice input'); return; }
+
+    currentTranscript = '';
+    recognition = new SR();
+    recognition.lang = 'en-US';
+    recognition.continuous = false;
+    recognition.interimResults = true;
+
+    recognition.onstart = () => {
+      isRecording = true;
+      document.getElementById('mic-btn').classList.add('recording');
+      document.getElementById('mic-btn').textContent = '⏹';
+      setStatus('Listening...', 'listening');
+    };
+
+    recognition.onresult = (e) => {
+      let interim = '', final = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) final += e.results[i][0].transcript;
+        else interim += e.results[i][0].transcript;
+      }
+      document.getElementById('transcript-preview').textContent = final || interim;
+      if (final) currentTranscript = final;
+      else if (!currentTranscript) currentTranscript = interim;
+    };
+
+    recognition.onend = () => {
+      isRecording = false;
+      recognition = null;
+      document.getElementById('mic-btn').classList.remove('recording');
+      document.getElementById('mic-btn').textContent = '🎤';
+
+      const text = currentTranscript.trim();
+      currentTranscript = '';
+      document.getElementById('transcript-preview').textContent = '';
+
+      if (text) sendMessage(text);
+      else setStatus('Tap the mic to speak');
+    };
+
+    recognition.onerror = (e) => {
+      isRecording = false;
+      recognition = null;
+      document.getElementById('mic-btn').classList.remove('recording');
+      document.getElementById('mic-btn').textContent = '🎤';
+      currentTranscript = '';
+      document.getElementById('transcript-preview').textContent = '';
+      const msg = e.error === 'not-allowed'
+        ? 'Mic blocked — allow microphone access in browser settings'
+        : e.error === 'no-speech' ? 'No speech detected. Try again.'
+        : 'Mic error: ' + e.error;
+      setStatus(msg);
+    };
+
+    try {
+      recognition.start();
+    } catch (e) {
+      setStatus('Could not start mic: ' + e.message);
+    }
+  }
+
+  function toggleMic() {
+    if (isProcessing) return;
+    if (isRecording && recognition) {
+      recognition.stop();
+    } else {
+      startRecognition();
+    }
+  }
+
+  // ── Session Control ──
+  async function selectTopic(topicId) {
+    showLoader(true);
+    try {
+      const res = await fetch('/api/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic_id: topicId }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+
+      sessionId = data.session_id;
+
+      // Find topic name for header
+      const topicName = document.querySelector(`.topic-card:nth-child(${topicId}) .name`)?.textContent || 'Conversation';
+      document.getElementById('header-topic-name').textContent = topicName;
+
+      document.getElementById('messages').innerHTML = '';
+      showScreen('chat-screen');
+
+      addMessage('alex', data.opener, null);
+      await playAudio(data.audio);
+      setStatus('Tap the mic to speak');
+
+    } catch (e) {
+      showToast('Error starting session: ' + e.message);
+    } finally {
+      showLoader(false);
+    }
+  }
+
+  async function sendMessage(text) {
+    if (!sessionId) return;
+
+    addMessage('user', text, null);
+    setStatus('Alex is thinking...', 'thinking');
+    setMicDisabled(true);
+    isProcessing = true;
+
+    // Show typing indicator
+    const typingId = addTypingIndicator();
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId, message: text }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+
+      removeTypingIndicator(typingId);
+      addMessage('alex', data.spoken, null);
+      await playAudio(data.audio);
+
+    } catch (e) {
+      removeTypingIndicator(typingId);
+      showToast('Error: ' + e.message);
+    } finally {
+      isProcessing = false;
+      setMicDisabled(false);
+      setStatus('Tap the mic to speak');
+    }
+  }
+
+  async function endSession() {
+    if (!sessionId) { goHome(); return; }
+
+    showLoader(true);
+    try {
+      const res = await fetch('/api/end', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId }),
+      });
+      const data = await res.json();
+      sessionId = null;
+
+      // Populate summary screen
+      document.getElementById('summary-topic-name').textContent = data.topic || 'Conversation';
+      document.getElementById('stat-duration').textContent = data.duration || '—';
+      document.getElementById('stat-exchanges').textContent = data.exchange_count || 0;
+      document.getElementById('stat-corrections').textContent = data.corrections?.length || 0;
+
+      const list = document.getElementById('corrections-list');
+      if (data.corrections && data.corrections.length > 0) {
+        list.innerHTML = data.corrections.map(c =>
+          `<div class="correction-item">${escapeHtml(c)}</div>`
+        ).join('');
+      } else {
+        list.innerHTML = '<div class="no-corrections">🎉 No corrections needed — excellent English!</div>';
+      }
+
+      showScreen('summary-screen');
+      await playAudio(data.audio);
+
+    } catch (e) {
+      showToast('Error ending session');
+      goHome();
+    } finally {
+      showLoader(false);
+    }
+  }
+
+  function goHome() {
+    if (isRecording && recognition) recognition.stop();
+    sessionId = null;
+    showScreen('home-screen');
+  }
+
+  function restart() {
+    showScreen('home-screen');
+  }
+
+  // ── UI Helpers ──
+  function addMessage(role, text, correction) {
+    const messages = document.getElementById('messages');
+    const group = document.createElement('div');
+    group.className = `msg-group ${role}`;
+
+    const label = document.createElement('div');
+    label.className = 'msg-label';
+    label.textContent = role === 'user' ? 'You' : 'Alex';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.textContent = text;
+
+    group.appendChild(label);
+    group.appendChild(bubble);
+
+    if (correction) {
+      const box = document.createElement('div');
+      box.className = 'correction-box';
+      box.innerHTML = formatCorrection(correction);
+      group.appendChild(box);
+    }
+
+    messages.appendChild(group);
+    messages.scrollTop = messages.scrollHeight;
+    return group;
+  }
+
+  function formatCorrection(text) {
+    // Make → bold and style the note nicely
+    return escapeHtml(text)
+      .replace(/→/g, '<strong>→</strong>')
+      .replace(/📝/g, '📝');
+  }
+
+  function addTypingIndicator() {
+    const messages = document.getElementById('messages');
+    const id = 'typing-' + Date.now();
+    const group = document.createElement('div');
+    group.className = 'msg-group alex';
+    group.id = id;
+    group.innerHTML = `
+      <div class="msg-label">Alex</div>
+      <div class="typing-indicator">
+        <span></span><span></span><span></span>
+      </div>`;
+    messages.appendChild(group);
+    messages.scrollTop = messages.scrollHeight;
+    return id;
+  }
+
+  function removeTypingIndicator(id) {
+    document.getElementById(id)?.remove();
+  }
+
+  function setStatus(text, type = '') {
+    const el = document.getElementById('status-text');
+    el.textContent = text;
+    el.className = 'status-text ' + type;
+  }
+
+  function setMicDisabled(val) {
+    document.getElementById('mic-btn').disabled = val;
+  }
+
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    window.scrollTo(0, 0);
+  }
+
+  function showLoader(val) {
+    document.getElementById('loader').classList.toggle('show', val);
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  async function playAudio(base64) {
+    if (!base64) return;
+    return new Promise((resolve) => {
+      const audio = new Audio('data:audio/mp3;base64,' + base64);
+      audio.onended = resolve;
+      audio.onerror = resolve;
+      audio.play().catch(resolve);
+    });
+  }
+
+  function escapeHtml(text) {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+</script>
+</body>
+</html>
