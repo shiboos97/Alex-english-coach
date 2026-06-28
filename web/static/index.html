@@ -547,6 +547,7 @@
   let isProcessing = false;
   let recognition = null;
   let currentTranscript = '';
+  let lastInterim = '';
   let audioCtx = null;
 
   // Unlock AudioContext on first user gesture so mobile browsers allow playback
@@ -605,6 +606,7 @@
     if (!SR) { showToast('Use Chrome for voice input'); return; }
 
     currentTranscript = '';
+    lastInterim = '';
     recognition = new SR();
     recognition.lang = 'en-US';
     recognition.continuous = true;   // keep listening until user taps stop
@@ -623,10 +625,14 @@
         if (e.results[i].isFinal) final += e.results[i][0].transcript + ' ';
         else interim += e.results[i][0].transcript;
       }
-      // accumulate finals, show interim live
-      if (final) currentTranscript += final;
+      if (final) {
+        currentTranscript += final;
+        lastInterim = '';
+      } else {
+        lastInterim = interim;
+      }
       document.getElementById('transcript-preview').textContent =
-        (currentTranscript + interim).trim();
+        (currentTranscript + lastInterim).trim();
     };
 
     recognition.onend = () => {
@@ -635,8 +641,10 @@
       document.getElementById('mic-btn').classList.remove('recording');
       document.getElementById('mic-btn').textContent = '🎤';
 
-      const text = currentTranscript.trim();
+      // Include any trailing interim that never got finalized
+      const text = (currentTranscript + ' ' + lastInterim).trim();
       currentTranscript = '';
+      lastInterim = '';
       document.getElementById('transcript-preview').textContent = '';
 
       if (text) sendMessage(text);
